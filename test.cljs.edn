@@ -1,0 +1,7 @@
+^{:watch-dirs ["test" "src"]}
+{:main            hummi.test-runner
+ :output-to       "./target/public/cljs-out/test/main.js"
+ :output-dir      "target/public/cljs-out/test"
+ :browser-repl    false
+ :language-out    :ecmascript-next
+ :closure-defines {cljs.core/*global* "window"}}

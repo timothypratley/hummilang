@@ -1,0 +1,13 @@
+node_modules
+target/
+.cljs_node_repl/
+.clj-kondo/
+.cpcache/
+.idea/
+pom.xml
+*.jar
+*.log
+.lein-*
+.repl
+.nrepl-port
+.rebel_readline_history

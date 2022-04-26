@@ -1,0 +1,8 @@
+^{:open-url false}
+{:main            hummilang.main
+ :infer-externs   true
+ ;; If stuck on an advanced compile name (prefer *warn-on-infer*)
+ ;;:pseudo-names true
+ ;;:pretty-print true
+ :language-out    :ecmascript-next
+ :closure-defines {cljs.core/*global* "window"}}
