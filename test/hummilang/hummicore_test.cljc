@@ -58,10 +58,12 @@
         (hl/evaluate)
         (= 3)
         (is "apply invokes a function with arguments"))
-    (-> '(+ 1 2)
+    #_(time (dotimes [i 10000]
+            (hl/evaluate '((lambda [x] (+ x x)) 1000))))
+    #_(time (dotimes [i 10000]
+            (eval '((fn [x] (+ x x)) 1000))))
+    (-> '(let [[a 1]]
+           (+ a 2))
         (hl/evaluate)
-        (time))
-    (-> '(+ 1 2)
-        (eval)
-        (time))
-    ))
+        (= 3)
+        (is "let creates a binding"))))

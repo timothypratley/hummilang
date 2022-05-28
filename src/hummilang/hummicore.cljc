@@ -33,7 +33,7 @@
     (function values definition-environment)))
 
 (defn invoke [function arguments environment]
-  (prn 'INVOKE (some-> function meta :name) arguments)
+  #_(prn 'INVOKE (some-> function meta :name) arguments)
   (if (fn? function)
     (function arguments environment)
     (wrong (str "Not a function: " (pr-str function))
@@ -47,6 +47,7 @@
 
 (def true# 1)
 (def false# 0)
+(def uninitialized# 'uninitialized)
 
 (defn ^:private primitive-boolean-fn [function-name f]
   ^{:name function-name}
@@ -111,6 +112,19 @@
                         expression environment))
      (let [[function & arguments] expression]
        (case function
+         let (let [[bindings & body] arguments]
+               (evaluate-program
+                 body
+                 (extend-environment
+                   environment
+                   (for [binding bindings]
+                     (if (symbol? binding)
+                       binding
+                       (first binding)))
+                   (for [binding bindings]
+                     (if (symbol? binding)
+                       uninitialized#
+                       (evaluate (last binding) environment))))))
          quote (first arguments)
          if (let [[test then else] arguments]
               (if (evaluate test environment)
