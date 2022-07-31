@@ -5,4 +5,4 @@
 (def hlp
   (insta/parser (io/resource "hummilang-grammar.ebnf")))
 
-(prn (hlp "(1 -2.0 alpha {0 {} (1 2) x})"))
+(prn (hlp "'x (1 -2.0 alpha {0 {} (1 2) x})"))
