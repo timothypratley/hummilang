@@ -1,0 +1,11 @@
+forms = (ows form)+ ows
+<form> = symbol | primitive | collection
+symbol = #"[a-zA-Z][^{}()\s]*"
+<primitive> = number | string
+number = #"[+-]?([0-9]+\.?[0-9]*|\.[0-9]+)"
+string = #'"(?:[^"\\]|\\.)+"'
+<collection> = set | list
+set = <"{"> (ows form)* ows <"}">
+list = <"("> (ows form)* ows <")">
+<rws> = <#"[,\s]+">
+<ows> = <#"[,\s]*">

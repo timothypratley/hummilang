@@ -1,30 +1,31 @@
-{:paths   ["src"]
+{:paths ["src" "resources"]
 
- :deps    {org.clojure/clojure       {:mvn/version "1.11.1"}
-           org.clojure/clojurescript {:mvn/version "1.11.4"}}
+ :deps {org.clojure/clojure {:mvn/version "1.11.1"}
+        org.clojure/clojurescript {:mvn/version "1.11.60"}
+        instaparse/instaparse {:mvn/version "1.4.12"}}
 
  :aliases {;; For updating Clojure dependencies
-           :outdated {:replace-deps {olical/depot        {:mvn/version "2.3.0"}
+           :outdated {:replace-deps {olical/depot {:mvn/version "2.3.0"}
                                      org.slf4j/slf4j-nop {:mvn/version "1.7.32"}}
-                      :main-opts    ["-m" "depot.outdated.main"]}
-           :dev      {:extra-paths ["dev" "test"]}
+                      :main-opts ["-m" "depot.outdated.main"]}
+           :dev {:extra-paths ["dev" "test"]}
            ;; Launch an interactive REPL build
 
            ;; TODO:
            #_#_#_#_:fig {:extra-deps {com.bhauman/figwheel-main {:mvn/version "0.2.16"}
-                                      devcards/devcards         {:mvn/version "0.2.7"}}
-                         :main-opts  ["-m" "figwheel.main" "--build" "hummilang" "--repl"]}
+                                      devcards/devcards {:mvn/version "0.2.7"}}
+                         :main-opts ["-m" "figwheel.main" "--build" "hummilang" "--repl"]}
                    :cards {:extra-deps {com.bhauman/figwheel-main {:mvn/version "0.2.16"}
-                                        devcards/devcards         {:mvn/version "0.2.7"}}
-                           :main-opts  ["-m" "figwheel.main" "--build" "cards" "--repl"]}
+                                        devcards/devcards {:mvn/version "0.2.7"}}
+                           :main-opts ["-m" "figwheel.main" "--build" "cards" "--repl"]}
            ;; Run the tests
-           :test-clj {:extra-deps  {lambdaisland/kaocha {:mvn/version "1.65.1029"}}
+           :test-clj {:extra-deps {lambdaisland/kaocha {:mvn/version "1.69.1069"}}
                       :extra-paths ["test"]
-                      :main-opts   ["-m" "kaocha.runner"]}
+                      :main-opts ["-m" "kaocha.runner"]}
            ;; TODO:
-           #_#_:test-cljs {:extra-deps  {com.bhauman/figwheel-main {:mvn/version "0.2.16"}}
+           #_#_:test-cljs {:extra-deps {com.bhauman/figwheel-main {:mvn/version "0.2.16"}}
                            :extra-paths ["dev" "test"]
-                           :main-opts   ["-m" "figwheel.main"
-                                         "--compile-opts" "test.cljs.edn"
-                                         "-fwo" "{:launch-js [\"/usr/bin/firefox\" \"-headless\" :open-url]}"
-                                         "-m" "hummilang.test-runner"]}}}
+                           :main-opts ["-m" "figwheel.main"
+                                       "--compile-opts" "test.cljs.edn"
+                                       "-fwo" "{:launch-js [\"/usr/bin/firefox\" \"-headless\" :open-url]}"
+                                       "-m" "hummilang.test-runner"]}}}

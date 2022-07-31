@@ -2,7 +2,7 @@
 
 > Hummingbirds have a variety of calls, chips, chatters and squeals to communicate with each other.
 
-Im pretty sure they communicate in LISP, so Hummilang is a LISP.
+I'm pretty sure they communicate in LISP, so Hummilang is a LISP.
 
 ## Goals
 
