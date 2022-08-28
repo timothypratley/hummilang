@@ -1,14 +1,11 @@
 (ns hummilang.hummicore
-  (:require [clojure.edn :as edn]))
+  (:require [hummilang.parser :as hp]))
 
 (declare evaluate)
 
 (defmacro ^:private wrong [message expression environment]
   `(throw (ex-info ~message {:environment ~environment
                              :expression  ~expression})))
-
-(defn ^:private parse [s]
-  (edn/read-string s))
 
 (defn evaluate-program [[head & tail] environment]
   (if tail
@@ -70,7 +67,7 @@
 (def global-environment (atom (new-environment)))
 
 (defn read-evaluate [s]
-  (-> (parse s)
+  (-> (hp/read s)
       (evaluate @global-environment)))
 
 (defn ^:private atom? [expression]

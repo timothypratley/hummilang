@@ -1,8 +1,21 @@
 (ns hummilang.parser
-  (:require [instaparse.core :as insta]
+  (:refer-clojure :exclude [parse read])
+  (:require [clojure.edn :as edn]
+            [instaparse.core :as insta]
+            [instaparse.transform :as t]
             [clojure.java.io :as io]))
 
-(def hlp
+(def parse
   (insta/parser (io/resource "hummilang-grammar.ebnf")))
 
-(prn (hlp "'x (1 -2.0 alpha {0 {} (1 2) x})"))
+(def tag-transform
+  {:number edn/read-string
+   :symbol symbol
+   :quote  #(list 'quote %)
+   :list   list
+   :set    hash-set
+   :forms  identity})
+
+(defn read [s]
+  (->> (parse s)
+    (t/transform tag-transform)))

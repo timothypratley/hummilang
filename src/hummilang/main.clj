@@ -1,9 +1,13 @@
 (ns hummilang.main
   (:require [hummilang.hummicore :as hl]))
 
-(defn -main []
-  (hl/read-evaluate (slurp () *in*)))
+(defn -main [& args]
+  (hl/read-evaluate (slurp *in*)))
 
-(defn repl []
-  (println (hl/read-evaluate (read-line)))
-  (recur))
+(defn repl [& args]
+  ;; TODO: handle multi-line inputs!
+  (loop [line (read-line)]
+    (when line
+      (-> (hl/read-evaluate line)
+        (doto (println)))
+      (recur (read-line)))))

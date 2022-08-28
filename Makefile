@@ -8,6 +8,9 @@ endif
 
 all: setup test min
 
+repl:
+	clojure -X hummilang.main/repl
+
 setup:
 	clojure -P
 
