@@ -14,7 +14,7 @@
    :quote  #(list 'quote %)
    :list   list
    :set    hash-set
-   :forms  identity})
+   :forms  list})
 
 (defn read [s]
   (->> (parse s)
