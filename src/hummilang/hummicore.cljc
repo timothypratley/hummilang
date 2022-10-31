@@ -68,6 +68,7 @@
 
 (defn read-evaluate [s]
   (-> (hp/read s)
+      (into '(do))
       (evaluate @global-environment)))
 
 (defn ^:private atom? [expression]
@@ -127,7 +128,7 @@
               (if (evaluate test environment)
                 (recur then environment)
                 (recur else environment)))
-         begin (evaluate-program arguments environment)
+         do (evaluate-program arguments environment)
          set! (let [[variable assignment] arguments
                     value (evaluate assignment environment)]
                 (update! variable value environment))

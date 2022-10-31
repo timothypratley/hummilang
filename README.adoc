@@ -1,0 +1,80 @@
+:toc: preamble
+
+= Hummilang
+
+++++
+<img src="hummi.png" width=200 align="right" />
+++++
+
+____
+Hummingbirds have a variety of calls, chips, chatters and squeals to communicate with each other.
+____
+
+I'm pretty sure they communicate in LISP, so Hummilang is a LISP.
+
+== Goals
+
+. Implement a Lisp according to "Lisp in small pieces".
+. Run programs of a more mathematically compatible notation.
+. Render correctly as http://asciimath.org/[AsciiMath]
+
+== Status
+
+* [x] Evaluator
+* [x] Parser
+* [ ] Data structures
+* [ ] Syntactic sugar
+* [ ] Core
+* [ ] Compiler
+
+== Math notation
+
+Popular languages diverge from math notation.
+
+* `{}` should be sets.
+* `()` or `[]` should be ordered pairs, tuples.
+* `{(k, v)...}` should be mappings
+* Ranges `[0,1) [0,1] (0,1] (0,1)` overlap with pairs/tuples and are asymmetrical.
+* `=>` is a binary operator that should yield TRUE given FALSE (from falsehood, anything follows).
+
+I'd prefer to code in math notation even if it's harder to write, I claim it would be easier to read (this is quite a stretch, I'm insisting that the benefits of an axiomatic basis for notation is more powerful than linguistic colloquialism).
+ZFC lays out the scientific community's common language,
+I think having a strong common root of expression has benefits.
+
+== Constructs
+
+=== Data literals
+
+Numbers `1 1.1 pi 3i`
+
+There only one numerical type
+
+Strings `"this is a string"`
+
+List literals `[1 1 2]`
+
+Lists allow modification at both ends, and random reads and writes. Due to relaxed radix structure, they also have near constant-time slices and concatenation.
+
+Set literals `{1 2 3}`
+
+Sets are sorted for logn index and map lookup
+
+Maps are a special case of sets and lists `{[1 2] [3 4] [5 6]}`
+
+Indexes are represented as `{["e" "a" "v" "t"] ...}`
+
+=== Operators
+
+`1 + 2` is syntactic sugar for the list `[$ + 1 2]`
+
+Operators bind according to math infix rules
+
+=== Grouping
+
+Parenthesis are used for grouping `()`.
+
+=== Functions
+
+`[f(1)]` is syntactic sugar for `[$ f [1]]`
+
+`[f(x) = x + 1]` is syntactic sugar for `[$ defn [f [x] [$ + x 1]]]`
