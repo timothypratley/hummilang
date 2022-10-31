@@ -1,7 +1,7 @@
 forms = (ows form)+ ows
 <form> = symbol | primitive | collection | quote
 quote = <"'">form
-symbol = #'[^"{}()\s]+'
+symbol = #'[^"{}()\[\]\s]+'
 <primitive> = number | string
 number = #"[+-]?([0-9]+\.?[0-9]*|\.[0-9]+)"
 string = #'"(?:[^"\\]|\\.)+"'
