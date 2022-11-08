@@ -62,6 +62,7 @@
 ;; applicators
 
 (defn transduce* [t r init from]
+  (reset t)
   (let [f (fn [acc x]
             (step t r acc x))
         ret (reduce f init from)]
@@ -88,6 +89,9 @@
         (step t1 r2 result x)))
     (complete [this r result]
       (r result))
+    (reset [this]
+      (reset t1)
+      (reset t2))
     Object (toString [this] (str "<comp " t1 ", " t2 "> reducer"))))
 
 (def t3 (comp* t1 t2))
