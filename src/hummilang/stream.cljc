@@ -2,28 +2,32 @@
 
 ;; the interface
 
-(defprotocol transducer
-  ;; empty is unnecessary, always specify the initial value instead
+(defprotocol Reducer
+  ;; init is unnecessary; always specify the initial value instead
   (init [this r])
   (step [this r result x])
-  (complete [this r result]))
+  (complete [this r result])
+  (reset [this]))
 
-;; transducer constructors
+;; constructors
 
 (defn map* [f]
-  (reify transducer
+  (reify
+    Reducer
     (init [this r] (r))
     ;; this is map over one stream for now
     (step [this r result x]
       (r result (f x)))
     (complete [this r result]
       (r result))
+    (reset [this])
     Object
     (toString [this]
-      (str "<map transducer>"))))
+      (str "<map " f "> reducer"))))
 
 (defn filter* [pred]
-  (reify transducer
+  (reify
+    Reducer
     (init [this r] (r))
     (step [this r result x]
       (if (pred x)
@@ -31,9 +35,29 @@
         result))
     (complete [this r result]
       (r result))
+    (reset [this])
     Object
     (toString [this]
-      (str "<filter transducer>"))))
+      (str "<filter " pred "> reducer"))))
+
+(defn take* [n]
+  ;; how to put the state be inside the Reducer itself?
+  (let [i (atom 0)]
+    (reify
+      Reducer
+      (init [this r] (r))
+      (step [this r result x]
+        (if (< @i n)
+          (do (swap! i inc)
+              (r result x))
+          result))
+      (complete [this r result]
+        (r result))
+      (reset [this]
+        (reset! i 0))
+      Object
+      (toString [this]
+        (str "<take " n "> reducer")))))
 
 ;; applicators
 
@@ -55,7 +79,7 @@
 ;; dodgy composition
 
 (defn comp* [t1 t2]
-  (reify transducer
+  (reify Reducer
     (init [this r]
       (r))
     (step [this r result x]
@@ -63,8 +87,12 @@
                  (step t2 r result y))]
         (step t1 r2 result x)))
     (complete [this r result]
-      (r result))))
+      (r result))
+    Object (toString [this] (str "<comp " t1 ", " t2 "> reducer"))))
 
 (def t3 (comp* t1 t2))
 
 (into* [] t3 (range 10))
+
+(def t4 (take* 5))
+(into* [] t4 (range 10))
