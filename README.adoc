@@ -14,7 +14,7 @@ I'm pretty sure they communicate in LISP, so Hummilang is a LISP.
 
 == Goals
 
-. Implement a Lisp according to "Lisp in small pieces".
+. Implement a Lisp according to the book "Lisp in Small Pieces".
 . Run programs of a more mathematically compatible notation.
 . Render correctly as http://asciimath.org/[AsciiMath]
 
@@ -23,6 +23,7 @@ I'm pretty sure they communicate in LISP, so Hummilang is a LISP.
 * [x] Evaluator
 * [x] Parser
 * [ ] Data structures
+* [ ] Transducers
 * [ ] Syntactic sugar
 * [ ] Core
 * [ ] Compiler
