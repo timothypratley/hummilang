@@ -46,14 +46,14 @@
               (wrong (str "Incorrect arity " function-name) args env cont)))})
 
 (defn invoke [f args env cont]
-  (if (:cont f)
-    (if (= 1 (count args))
-      (resume f (first args))
-      (wrong "Continuations expect one argument" args env cont))
-    (case (:type f)
-      function (let [env (extend-environment (:env f) (:args f) args)]
-                 (evaluate-do (:body f) env cont))
-      primitive ((:f f) args env cont)
+  (case (:type f)
+    function (let [env (extend-environment (:env f) (:args f) args)]
+               (evaluate-do (:body f) env cont))
+    primitive ((:f f) args env cont)
+    (if (:cont f)
+      (if (= 1 (count args))
+        (resume f (first args))
+        (wrong "Continuations expect one argument" args env cont))
       (wrong "Not a function" f env cont))))
 
 (defn ^:private new-environment []
@@ -87,24 +87,22 @@
 (defn ^:private atom? [expression]
   (not (list? expression)))
 
-(defn catch-lookup [cont tag contcont]
-  (if (:cont cont)
-    (case (:type cont)
-      labeled-cont (if (= tag (:tag cont))
-                     (evaluate (:form contcont)
-                               (:env contcont)
-                               {:type     'throwing-cont
-                                :env      (:env cont)
-                                :cont     cont
-                                :contcont contcont
-                                :tag      tag})
-                     (catch-lookup {:type 'labeled-cont
-                                    :cont cont}
-                                   tag
-                                   contcont))
-      bottom-cont (wrong "No associated catch" (:env cont) tag contcont)
-      (catch-lookup (:cont cont) tag contcont))
-    (wrong "Not a continuation" tag (:env cont) contcont)))
+(defn catch-lookup [cont tag throwcont]
+  (case (:type cont)
+    labeled-cont (if (= tag (:tag cont))
+                   (evaluate (:form throwcont)
+                             (:env throwcont)
+                             (assoc throwcont
+                               :type 'throwing-cont
+                               :tag tag
+                               :throwcont (:cont cont)))
+                   (catch-lookup (:cont cont)
+                                 tag
+                                 throwcont))
+    bottom-cont (wrong "No associated catch" tag cont throwcont)
+    (if (:cont cont)
+      (catch-lookup (:cont cont) tag throwcont)
+      (wrong "Not a continuation" (:type cont) cont throwcont))))
 
 (defn resume [cont value]
   (case (:type cont)
@@ -131,8 +129,8 @@
     catch-cont (evaluate-do (:body cont) (:env cont) {:type 'labeled-cont
                                                       :cont (:cont cont)
                                                       :tag  value})
-    throw-cont (catch-lookup (:cont cont) (:tag cont) (:cont cont))
-    throwing-cont (resume (:cont cont) value)
+    throw-cont (catch-lookup cont value cont)
+    throwing-cont (resume (:throwcont cont) value)
     (wrong "Unknown continuation" (:type cont) (:env cont) (:cont cont))))
 
 (defn evaluate-args [args env cont]

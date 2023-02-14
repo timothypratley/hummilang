@@ -74,7 +74,12 @@
       (hl/evaluate)
       (= [1 2 3])
       (is "cons works"))
-    (-> '(catch 1
+    (-> '(+ 3 (catch 1
+                     (+ 2 (throw 1 5))))
+      (hl/evaluate)
+      (= 8)
+      (is "throw catch"))
+    #_(-> '(catch 1
                 (+ 1 (throw 1 5)))
       (hl/evaluate)
       (= 5)
