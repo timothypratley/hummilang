@@ -75,7 +75,8 @@
    ;; TODO: these shouldn't be primitives
    '+       (primitive-fn '+ + 2)
    '=       (primitive-fn '= = 2)
-   '<       (primitive-fn '< < 2)})
+   '<       (primitive-fn '< < 2)
+   '*       (primitive-fn '* * 2)})
 
 (def global-environment (atom (new-environment)))
 
@@ -131,6 +132,7 @@
                                                       :tag  value})
     throw-cont (catch-lookup cont value cont)
     throwing-cont (resume (:throwcont cont) value)
+    labeled-cont (resume (:cont cont) value)
     (wrong "Unknown continuation" (:type cont) (:env cont) (:cont cont))))
 
 (defn evaluate-args [args env cont]
