@@ -89,23 +89,37 @@
 (defn ^:private atom? [expression]
   (not (list? expression)))
 
-(defn catch-lookup [cont tag throwcont]
+(defn catch-lookup [cont tag throw-cont]
   (cond (= tag (:tag cont not-found))
-        (evaluate (:form throwcont)
-                  (:env throwcont)
-                  (assoc throwcont
+        (evaluate (:form throw-cont)
+                  (:env throw-cont)
+                  (assoc throw-cont
                     :type 'throwing-cont
                     :tag tag
-                    :throwcont cont))
+                    :throw-cont cont))
 
         (:cont cont)
-        (catch-lookup (:cont cont) tag throwcont)
+        (catch-lookup (:cont cont) tag throw-cont)
 
         (= (:type cont) 'bottom-cont)
-        (wrong "No associated catch" tag cont throwcont)
+        (wrong "No associated catch" tag cont throw-cont)
 
         :else
-        (wrong "Not a continuation" (:type cont) cont throwcont)))
+        (wrong "Not a continuation" (:type cont) cont throw-cont)))
+
+#_(defn unwind [cont value target-cont]
+  (if (= cont target-cont)
+    (if (= (:type cont) 'bottom-cont)
+      (wrong "Obsolete continuation" value (:env cont) cont)
+      (unwind (:cont cont) value target-cont))
+    (resume cont value)))
+
+#_(defn block-lookup [env n cont value]
+  (if (map? env)
+    (if (contains? env n)
+      (unwind cont value (:cont env))
+      (wrong "Unknown block label" n env cont))
+    (wrong "Not an environment" value env cont)))
 
 (defn resume [cont value]
   (case (:type cont)
@@ -133,7 +147,9 @@
                             (assoc (:cont cont)
                               :tag value))
     throw-cont (catch-lookup cont value cont)
-    throwing-cont (resume (:throwcont cont) value)
+    throwing-cont (resume (:throw-cont cont) value)
+    #_#_block-cont (resume (:cont cont) value)
+    #_#_resume-from-cont (block-lookup (:env cont) (:label cont) (:cont cont) value)
     (wrong "Unknown continuation" (:type cont) (:env cont) (:cont cont))))
 
 (defn evaluate-args [args env cont]
@@ -219,6 +235,19 @@
                      :cont cont
                      :form form}))
 
+#_(defn evaluate-block [[label & body] env cont]
+  (let [k {:type  'block-cont
+           :env   env
+           :cont  cont
+           :label label}]
+    (evaluate-do body (assoc env :label k) k)))
+
+#_(defn evaluate-return-from [[label form] env cont]
+  (evaluate form env {:type 'return-from-cont
+                      :env env
+                      :cont cont
+                      :label label}))
+
 (defn evaluate
   ([expression]
    (evaluate expression @global-environment {:type 'bottom-cont
@@ -240,4 +269,6 @@
          fn (evaluate-fn tail env cont)
          catch (evaluate-catch tail env cont)
          throw (evaluate-throw tail env cont)
+         #_#_block (evaluate-block tail env cont)
+         #_#_return-from (evaluate-return-from tail env cont)
          (evaluate-apply head tail env cont))))))
