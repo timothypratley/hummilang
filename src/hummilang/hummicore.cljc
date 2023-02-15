@@ -27,6 +27,7 @@
     True))
 (def uninitialized# 'uninitialized)
 (def empty-do-value nil)
+(def not-found (reify))
 
 (defn ^:private primitive? [expression]
   (or (number? expression)
@@ -89,21 +90,22 @@
   (not (list? expression)))
 
 (defn catch-lookup [cont tag throwcont]
-  (case (:type cont)
-    labeled-cont (if (= tag (:tag cont))
-                   (evaluate (:form throwcont)
-                             (:env throwcont)
-                             (assoc throwcont
-                               :type 'throwing-cont
-                               :tag tag
-                               :throwcont (:cont cont)))
-                   (catch-lookup (:cont cont)
-                                 tag
-                                 throwcont))
-    bottom-cont (wrong "No associated catch" tag cont throwcont)
-    (if (:cont cont)
-      (catch-lookup (:cont cont) tag throwcont)
-      (wrong "Not a continuation" (:type cont) cont throwcont))))
+  (cond (= tag (:tag cont not-found))
+        (evaluate (:form throwcont)
+                  (:env throwcont)
+                  (assoc throwcont
+                    :type 'throwing-cont
+                    :tag tag
+                    :throwcont cont))
+
+        (:cont cont)
+        (catch-lookup (:cont cont) tag throwcont)
+
+        (= (:type cont) 'bottom-cont)
+        (wrong "No associated catch" tag cont throwcont)
+
+        :else
+        (wrong "Not a continuation" (:type cont) cont throwcont)))
 
 (defn resume [cont value]
   (case (:type cont)
@@ -127,12 +129,11 @@
     gather-cont (resume (:cont cont) (cons (:value cont) value))
     apply-cont (invoke (:f cont) value (:env cont) (:cont cont))
     bottom-cont ((:f cont) value)
-    catch-cont (evaluate-do (:body cont) (:env cont) {:type 'labeled-cont
-                                                      :cont (:cont cont)
-                                                      :tag  value})
+    catch-cont (evaluate-do (:body cont) (:env cont)
+                            (assoc (:cont cont)
+                              :tag value))
     throw-cont (catch-lookup cont value cont)
     throwing-cont (resume (:throwcont cont) value)
-    labeled-cont (resume (:cont cont) value)
     (wrong "Unknown continuation" (:type cont) (:env cont) (:cont cont))))
 
 (defn evaluate-args [args env cont]
@@ -152,8 +153,6 @@
                           :tail tail})
       (evaluate head env cont))
     (resume cont empty-do-value)))
-
-(def not-found (reify))
 
 (defn ^:private lookup [sym env cont]
   (let [value (get env sym not-found)]
