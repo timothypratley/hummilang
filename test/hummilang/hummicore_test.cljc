@@ -106,7 +106,7 @@
           (if (<= n 2)
             n
             (+ n (rec rec (dec n)))))
-        10)
+        10000)
     (hl/evaluate)
     (is "recursion"))
   ;; homework << can these continuations be collapsed??
