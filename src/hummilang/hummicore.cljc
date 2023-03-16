@@ -1,7 +1,7 @@
 (ns hummilang.hummicore
   (:require [hummilang.parser :as hp]))
 
-(declare evaluate)
+(declare evaluate*)
 (declare update!)
 (declare evaluate-do)
 (declare evaluate-args)
@@ -16,11 +16,12 @@
 
 ;; TODO: this is permanently destructive! Should only shadow globals
 (defn ^:private extend-environment [env variables values]
-  (merge env (zipmap variables values)))
+  (swap! env merge (zipmap variables values))
+  env)
 
 (defn True [a b] a)
 (defn False [a b] b)
-(def false-values #{False #{} 0 nil})
+(def false-values #{False #{} 0 nil false})
 (defn boolify [x]
   (if (contains? false-values x)
     False
@@ -49,8 +50,8 @@
 (defn invoke [f args env cont]
   (case (:type f)
     function (let [env (extend-environment (:env f) (:args f) args)]
-               (evaluate-do (:body f) env cont))
-    primitive ((:f f) args env cont)
+                (evaluate-do (:body f) env cont))
+    primitive #((:f f) args env cont)
     (if (:cont f)
       (if (= 1 (count args))
         (resume f (first args))
@@ -65,8 +66,8 @@
    'apply   {:type 'primitive
              :name 'apply
              :f    (fn [[f & args] env cont]
-                     (resume cont (invoke f (concat (butlast args) (last args))
-                                          env cont)))}
+                     (resume cont ((invoke f (concat (butlast args) (last args))
+                                           env cont))))}
    'call/cc {:type 'primitive
              :name 'call/cc
              :f    (fn [args env cont]
@@ -77,26 +78,23 @@
    '+       (primitive-fn '+ + 2)
    '=       (primitive-fn '= = 2)
    '<       (primitive-fn '< < 2)
-   '*       (primitive-fn '* * 2)})
+   '*       (primitive-fn '* * 2)
+   '<=      (primitive-fn '<= <= 2)
+   'dec     (primitive-fn 'dec dec 1)})
 
 (def global-environment (atom (new-environment)))
-
-(defn read-evaluate [s]
-  (-> (hp/read s)
-    (into '(do))
-    (evaluate)))
 
 (defn ^:private atom? [expression]
   (not (list? expression)))
 
 (defn catch-lookup [cont tag throw-cont]
   (cond (= tag (:tag cont not-found))
-        (evaluate (:form throw-cont)
-                  (:env throw-cont)
-                  (assoc throw-cont
-                    :type 'throwing-cont
-                    :tag tag
-                    :throw-cont cont))
+        (evaluate* (:form throw-cont)
+                   (:env throw-cont)
+                   (assoc throw-cont
+                     :type 'throwing-cont
+                     :tag tag
+                     :throw-cont cont))
 
         (:cont cont)
         (catch-lookup (:cont cont) tag throw-cont)
@@ -108,26 +106,28 @@
         (wrong "Not a continuation" (:type cont) cont throw-cont)))
 
 #_(defn unwind [cont value target-cont]
-  (if (= cont target-cont)
-    (if (= (:type cont) 'bottom-cont)
-      (wrong "Obsolete continuation" value (:env cont) cont)
-      (unwind (:cont cont) value target-cont))
-    (resume cont value)))
+    (if (= cont target-cont)
+      (if (= (:type cont) 'bottom-cont)
+        (wrong "Obsolete continuation" value (:env cont) cont)
+        (unwind (:cont cont) value target-cont))
+      (resume cont value)))
 
 #_(defn block-lookup [env n cont value]
-  (if (map? env)
-    (if (contains? env n)
-      (unwind cont value (:cont env))
-      (wrong "Unknown block label" n env cont))
-    (wrong "Not an environment" value env cont)))
+    (if (map? env)
+      (if (contains? env n)
+        (unwind cont value (:cont env))
+        (wrong "Unknown block label" n env cont))
+      (wrong "Not an environment" value env cont)))
 
-(defn resume [cont value]
+(defn resume
+  "When a value has been calculated, resume the continuation"
+  [cont value]
   (case (:type cont)
-    if-cont (evaluate (if (contains? false-values value)
-                        (:else cont)
-                        (:then cont))
-                      (:env cont)
-                      (:cont cont))
+    if-cont (evaluate* (if (contains? false-values value)
+                         (:else cont)
+                         (:then cont))
+                       (:env cont)
+                       (:cont cont))
     set!-cont (update! (:variable cont) value (:env cont) (:cont cont))
     do-cont (evaluate-do (:tail cont) (:env cont) (:cont cont))
     evfn-cont (evaluate-args (:args cont) (:env cont)
@@ -154,121 +154,143 @@
 
 (defn evaluate-args [args env cont]
   (if (seq args)
-    (evaluate (first args) env {:type 'arg-cont
-                                :env  env
-                                :cont cont
-                                :args (rest args)})
+    (evaluate* (first args) env {:type 'arg-cont
+                                 :env  env
+                                 :cont cont
+                                 :args (rest args)})
     (resume cont ())))
 
 (defn evaluate-do [[head & tail] env cont]
   (if head
-    (if (first tail)
-      (evaluate head env {:type 'do-cont
-                          :env  env
-                          :cont cont
-                          :tail tail})
-      (evaluate head env cont))
-    (resume cont empty-do-value)))
+    (if (seq tail)
+      #(evaluate* head env {:type 'do-cont
+                            :env  env
+                            :cont cont
+                            :tail tail})
+      #(evaluate* head env cont))
+    #(resume cont empty-do-value)))
 
 (defn ^:private lookup [sym env cont]
-  (let [value (get env sym not-found)]
+  (let [value (get @env sym not-found)]
     (if (= value not-found)
       (wrong "Unknown variable" sym env cont)
-      (resume cont value))))
+      #(resume cont value))))
 
 (defn ^:private update! [variable value env cont]
   (when (not (symbol? variable))
     (wrong "Not a symbol" variable env cont))
   (swap! env assoc variable value)
-  (resume cont value))
+  #(resume cont value))
 
 (defn ^:private evaluate-fn [[args & body] definition-environment cont]
-  (resume cont {:type 'function
-                :env  definition-environment
-                :cont cont
-                :args args
-                :body body}))
+  #(resume cont {:type 'function
+                 :env  definition-environment
+                 :cont cont
+                 :args args
+                 :body body}))
 
 (defn evaluate-let [[bindings & body] env cont]
-  (let [names (for [binding bindings]
-                (if (symbol? binding)
-                  binding
-                  (first binding)))
-        ;; TODO: just make a map instead
-        values (for [binding bindings]
-                 (if (symbol? binding)
-                   uninitialized#
-                   (evaluate (last binding) env cont)))]
+  (let [pairs (partition 2 bindings)
+        names (map first pairs)
+        ;; TODO: not trampolinable! should this be moved to a gather cont?
+        values (for [binding pairs]
+                 ((evaluate* (second binding) env cont)))]
     (evaluate-do body
                  (extend-environment env names values)
                  cont)))
 
 (defn evaluate-if [[test then else] env cont]
-  (evaluate test env {:type 'if-cont
-                      :env  env
-                      :cont cont
-                      :test test
-                      :then then
-                      :else else}))
+  #(evaluate* test env {:type 'if-cont
+                        :env  env
+                        :cont cont
+                        :test test
+                        :then then
+                        :else else}))
 
 (defn evaluate-set! [[variable assignment] env cont]
-  (evaluate assignment env {:type     'set!-cont
-                            :env      env
-                            :cont     cont
-                            :variable variable}))
+  #(evaluate* assignment env {:type     'set!-cont
+                              :env      env
+                              :cont     cont
+                              :variable variable}))
 
 (defn evaluate-apply [f args env cont]
-  (evaluate f env {:type 'evfn-cont
-                   :env  env
-                   :cont cont
-                   :args args}))
+  #(evaluate* f env {:type 'evfn-cont
+                     :env  env
+                     :cont cont
+                     :args args}))
 
 (defn evaluate-catch [[tag & body] env cont]
-  (evaluate tag env {:type 'catch-cont
-                     :env  env
-                     :cont cont
-                     :body body}))
+  #(evaluate* tag env {:type 'catch-cont
+                       :env  env
+                       :cont cont
+                       :body body}))
 
 (defn evaluate-throw [[tag form] env cont]
-  (evaluate tag env {:type 'throw-cont
-                     :env  env
-                     :cont cont
-                     :form form}))
+  #(evaluate* tag env {:type 'throw-cont
+                       :env  env
+                       :cont cont
+                       :form form}))
 
 #_(defn evaluate-block [[label & body] env cont]
-  (let [k {:type  'block-cont
-           :env   env
-           :cont  cont
-           :label label}]
-    (evaluate-do body (assoc env :label k) k)))
+    (let [k {:type  'block-cont
+             :env   env
+             :cont  cont
+             :label label}]
+      (evaluate*-do body (assoc env :label k) k)))
 
 #_(defn evaluate-return-from [[label form] env cont]
-  (evaluate form env {:type 'return-from-cont
-                      :env env
-                      :cont cont
-                      :label label}))
+    (evaluate* form env {:type  'return-from-cont
+                         :env   env
+                         :cont  cont
+                         :label label}))
+
+;; homework: extensible-case
+;; continuation+tailcall
+;; are we building a big stack?
+
+;; recursion:
+;stacking << fact (n) n* (fact (n -1))
+;looping << (fact acc n) = (fact n*acc (n-1))
+;dividing << (dfs) = ... (dfs dfs)
+;(dfs acc)
+;acc is a stack
+;mutual <<
+;acc is a stack
+;
+;--Except!!! loops do need to be tail-call
+;
+;;;
+
+
+(defn evaluate* [expression env cont]
+  (if (atom? expression)
+    (cond (symbol? expression) #(lookup expression env cont)
+          (primitive? expression) #(resume cont expression)
+          :else (wrong "Expression is not a list, primitive or variable"
+                       expression env cont))
+    ;; TODO: if these were multi-methods, it would be more extensible...
+    (let [[head & tail] expression]
+      (case head
+        let #(evaluate-let tail env cont)
+        quote #(resume cont (first tail))
+        if #(evaluate-if tail env cont)
+        do #(evaluate-do tail env cont)
+        set! #(evaluate-set! tail env cont)
+        fn #(evaluate-fn tail env cont)
+        catch #(evaluate-catch tail env cont)
+        throw #(evaluate-throw tail env cont)
+        #_#_block #(evaluate-block tail env cont)
+        #_#_return-from #(evaluate-return-from tail env cont)
+        #(evaluate-apply head tail env cont)))))
+
+(def the-bottom-cont {:type 'bottom-cont
+                      :f    identity})
 
 (defn evaluate
-  ([expression]
-   (evaluate expression @global-environment {:type 'bottom-cont
-                                             :f    identity}))
-  ([expression env cont]
-   (if (atom? expression)
-     (cond (symbol? expression) (lookup expression env cont)
-           (primitive? expression) (resume cont expression)
-           :else (wrong "Expression is not a list, primitive or variable"
-                        expression env cont))
-     ;; TODO: if these were multi-methods, it would be more extensible...
-     (let [[head & tail] expression]
-       (case head
-         let (evaluate-let tail env cont)
-         quote (resume cont (first tail))
-         if (evaluate-if tail env cont)
-         do (evaluate-do tail env cont)
-         set! (evaluate-set! tail env cont)
-         fn (evaluate-fn tail env cont)
-         catch (evaluate-catch tail env cont)
-         throw (evaluate-throw tail env cont)
-         #_#_block (evaluate-block tail env cont)
-         #_#_return-from (evaluate-return-from tail env cont)
-         (evaluate-apply head tail env cont))))))
+  ([expression] (evaluate expression global-environment the-bottom-cont))
+  ([expression env cont] (trampoline evaluate* expression env cont)))
+
+(defn read-evaluate [s]
+  (-> (hp/read s)
+    (into '(do))
+    (evaluate)))
